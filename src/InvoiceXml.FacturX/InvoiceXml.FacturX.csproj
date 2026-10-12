@@ -19,7 +19,7 @@
     <Copyright>Copyright (c) 2026 InvoiceXML</Copyright>
     <Description>Create, validate, embed and read Factur-X e-invoices from C# and .NET. A thin, typed client for the InvoiceXML REST API: EN 16931 invoice model in, Factur-X PDF/A-3 out, validated against the official rule sets before delivery, with the French BR-FR rules on request. Rule sets are updated on their legal effective dates, with no package update needed.</Description>
     <PackageTags>facturx;factur-x;facture-electronique;e-invoicing;einvoicing;e-invoice;en16931;chorus-pro;cii;pdf-a-3;invoice;france;b2b;b2g;br-fr</PackageTags>
-    <PackageProjectUrl>https://invoicexml.com</PackageProjectUrl>
+    <PackageProjectUrl>https://www.invoicexml.com</PackageProjectUrl>
     <RepositoryUrl>https://github.com/InvoiceXML/invoicexml-dotnet-facturx</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
