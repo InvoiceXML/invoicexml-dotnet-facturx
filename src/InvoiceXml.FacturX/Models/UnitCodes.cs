@@ -7,9 +7,8 @@ namespace InvoiceXml.FacturX;
 public static class UnitCodes
 {
     /// <summary>
-    /// Piece (H87): a countable item. The code German accounting systems and the
-    /// official ZUGFeRD sample invoices use for "Stück", and the unit the API writes
-    /// when a line names none.
+    /// Piece (H87): a countable item, and the unit the API writes when a line
+    /// names none.
     /// </summary>
     public const string Piece = "H87";
 
