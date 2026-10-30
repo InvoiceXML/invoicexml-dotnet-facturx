@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 namespace InvoiceXml.FacturX;
 
 /// <summary>
-/// Creates, validates, embeds and reads Factur-X e-invoices through the InvoiceXML API.
+/// Creates, validates, embeds, emails and reads Factur-X e-invoices through the InvoiceXML API.
 /// Implemented by <see cref="FacturXClient"/>; use the interface to inject and fake the client
 /// in your own tests.
 /// </summary>
@@ -24,6 +24,24 @@ public interface IFacturXClient
     /// The invoice would not be compliant (see <see cref="InvoiceXmlApiException.Findings"/>), or the request was refused.
     /// </exception>
     Task<InvoiceFile> CreateFacturXAsync(InvoiceDocument invoice, FacturXOptions? options = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a Factur-X invoice exactly like <see cref="CreateFacturXAsync"/> and sends it as a
+    /// real email from your own verified domain (<c>POST /v1/create/facturx/email</c>). Returns the
+    /// message id of the email, not the file.
+    /// </summary>
+    /// <param name="invoice">The invoice.</param>
+    /// <param name="email">Sender, recipient and, optionally, the copies, subject and text of the email.</param>
+    /// <param name="options">Rendering options and extra rule sets, or null for the defaults.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The accepted email with its message id.</returns>
+    /// <exception cref="InvoiceXmlApiException">
+    /// The invoice would not be compliant or an email field is invalid (see <see cref="InvoiceXmlApiException.Findings"/>),
+    /// the sender's domain is not verified (<see cref="InvoiceXmlErrorCode.EmailDomainNotVerified"/>),
+    /// your plan does not include email delivery (<see cref="InvoiceXmlErrorCode.EmailNotInPlan"/>),
+    /// sending is disabled for the account (<see cref="InvoiceXmlErrorCode.EmailSendingDisabled"/>), or the request was refused.
+    /// </exception>
+    Task<EmailSendResult> EmailFacturXAsync(InvoiceDocument invoice, EmailMessage email, FacturXOptions? options = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Validates a Factur-X PDF: extracts the embedded XML and checks it against the rules of the
@@ -61,6 +79,31 @@ public interface IFacturXClient
 
     /// <inheritdoc cref="EmbedFacturXAsync(byte[], byte[], bool, string?, IEnumerable{string}?, CancellationToken)"/>
     Task<InvoiceFile> EmbedFacturXAsync(Stream pdf, Stream xml, bool skipValidation = false, string? fileName = null, IEnumerable<string>? rules = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Turns your own PDF plus a CII XML into a Factur-X PDF/A-3, always with full validation, and
+    /// sends it as a real email from your own verified domain (<c>POST /v1/embed/facturx/email</c>).
+    /// Returns the message id of the email, not the file.
+    /// </summary>
+    /// <param name="pdf">Your invoice PDF, used as the visual layer.</param>
+    /// <param name="xml">The CII invoice XML to embed.</param>
+    /// <param name="email">Sender, recipient and, optionally, the copies, subject and text of the email.</param>
+    /// <param name="fileName">File name of the PDF upload. Defaults to <c>invoice.pdf</c>.</param>
+    /// <param name="rules">
+    /// Additional rule sets the XML must pass, for example <see cref="FacturXRuleSets.BrFr"/>. Null or empty for none.
+    /// </param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The accepted email with its message id.</returns>
+    /// <exception cref="InvoiceXmlApiException">
+    /// The XML is not compliant or an email field is invalid (see <see cref="InvoiceXmlApiException.Findings"/>),
+    /// the sender's domain is not verified (<see cref="InvoiceXmlErrorCode.EmailDomainNotVerified"/>),
+    /// your plan does not include email delivery (<see cref="InvoiceXmlErrorCode.EmailNotInPlan"/>),
+    /// sending is disabled for the account (<see cref="InvoiceXmlErrorCode.EmailSendingDisabled"/>), or the request was refused.
+    /// </exception>
+    Task<EmailSendResult> EmailEmbeddedFacturXAsync(byte[] pdf, byte[] xml, EmailMessage email, string? fileName = null, IEnumerable<string>? rules = null, CancellationToken cancellationToken = default);
+
+    /// <inheritdoc cref="EmailEmbeddedFacturXAsync(byte[], byte[], EmailMessage, string?, IEnumerable{string}?, CancellationToken)"/>
+    Task<EmailSendResult> EmailEmbeddedFacturXAsync(Stream pdf, Stream xml, EmailMessage email, string? fileName = null, IEnumerable<string>? rules = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Reads a Factur-X PDF or a CII invoice XML into an <see cref="InvoiceDocument"/> by

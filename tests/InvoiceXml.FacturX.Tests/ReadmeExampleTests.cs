@@ -30,6 +30,33 @@ public class ReadmeExampleTests
     }
 
     [Fact]
+    public async Task Email_example_is_sent_as_documented()
+    {
+        var (client, handler) = TestData.CreateClient();
+        handler.ReplyJson("""{"status":"accepted","messageId":"0102019a-test"}""");
+        handler.ReplyJson("""{"status":"accepted","messageId":"0102019a-test2"}""");
+        var invoice = TestData.Invoice();
+
+        // Same statements as the README email section, on a mocked transport.
+        var email = new EmailMessage
+        {
+            From = "invoices@yourcompany.com",
+            FromName = "Your Company Billing",
+            To = "comptabilite@client.example",
+            Cc = { "archive@yourcompany.com" },
+            Subject = "Facture F-2026-001",
+            Message = "Veuillez trouver ci-joint votre facture.",
+        };
+
+        var sent = await client.EmailFacturXAsync(invoice, email, new FacturXOptions { Language = PdfLanguage.Fr });
+        await client.EmailEmbeddedFacturXAsync(TestData.Pdf, TestData.Xml, email, rules: new[] { FacturXRuleSets.BrFr });
+
+        Assert.Equal("accepted", sent.Status);
+        Assert.Equal("0102019a-test", sent.MessageId);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
     public void Http_client_factory_registration_resolves_the_interface()
     {
         var services = new ServiceCollection();

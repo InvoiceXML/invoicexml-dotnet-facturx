@@ -79,6 +79,16 @@ public sealed class FacturXClient : IFacturXClient, IDisposable
     }
 
     /// <inheritdoc />
+    public async Task<EmailSendResult> EmailFacturXAsync(InvoiceDocument invoice, EmailMessage email, FacturXOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        if (invoice is null) throw new ArgumentNullException(nameof(invoice));
+        if (email is null) throw new ArgumentNullException(nameof(email));
+        var body = RequestContent.JsonBody(new CreateInvoiceEmailRequestBody { Invoice = invoice, Options = InvoiceOptionsBody.From(options), Email = EmailBody.FromMessage(email) });
+        var response = await Transport.PostAsync("v1/create/facturx/email", body, cancellationToken).ConfigureAwait(false);
+        return await ApiTransport.ReadJsonAsync<EmailSendResult>(response, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public async Task<InvoiceValidationResult> ValidateFacturXAsync(byte[] pdf, string? fileName = null, IEnumerable<string>? rules = null, CancellationToken cancellationToken = default)
     {
         if (pdf is null) throw new ArgumentNullException(nameof(pdf));
@@ -114,6 +124,32 @@ public sealed class FacturXClient : IFacturXClient, IDisposable
         var pdfBytes = await RequestContent.BufferAsync(pdf, cancellationToken).ConfigureAwait(false);
         var xmlBytes = await RequestContent.BufferAsync(xml, cancellationToken).ConfigureAwait(false);
         return await EmbedFacturXAsync(pdfBytes, xmlBytes, skipValidation, fileName, rules, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<EmailSendResult> EmailEmbeddedFacturXAsync(byte[] pdf, byte[] xml, EmailMessage email, string? fileName = null, IEnumerable<string>? rules = null, CancellationToken cancellationToken = default)
+    {
+        if (pdf is null) throw new ArgumentNullException(nameof(pdf));
+        if (xml is null) throw new ArgumentNullException(nameof(xml));
+        if (email is null) throw new ArgumentNullException(nameof(email));
+        var parts = new List<FormPart>
+        {
+            FormPart.FromFile("pdf", pdf, fileName ?? "invoice.pdf"),
+            FormPart.FromFile("xml", xml, "factur-x.xml"),
+        };
+        parts.AddRange(RuleParts(rules));
+        parts.AddRange(EmailBody.FromMessage(email).FormParts());
+        var response = await Transport.PostAsync("v1/embed/facturx/email", RequestContent.Form(parts.ToArray()), cancellationToken).ConfigureAwait(false);
+        return await ApiTransport.ReadJsonAsync<EmailSendResult>(response, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<EmailSendResult> EmailEmbeddedFacturXAsync(Stream pdf, Stream xml, EmailMessage email, string? fileName = null, IEnumerable<string>? rules = null, CancellationToken cancellationToken = default)
+    {
+        if (email is null) throw new ArgumentNullException(nameof(email));
+        var pdfBytes = await RequestContent.BufferAsync(pdf, cancellationToken).ConfigureAwait(false);
+        var xmlBytes = await RequestContent.BufferAsync(xml, cancellationToken).ConfigureAwait(false);
+        return await EmailEmbeddedFacturXAsync(pdfBytes, xmlBytes, email, fileName, rules, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

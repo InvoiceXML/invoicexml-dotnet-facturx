@@ -40,7 +40,7 @@ Totals, VAT breakdowns, the issue date and default payment terms are filled in b
 
 - **Rule sets updated on their legal effective dates.** New EN 16931, Factur-X and French reform rule releases switch server-side on the date they become binding. Your integration and this package stay the same: no package update, no redeploy.
 - **Validated before delivery.** Every invoice is checked against the official rules before it is returned. Data that cannot yield a compliant invoice is refused with the violated rules and the fields to correct.
-- **Zero data retention.** Documents are processed in memory and never stored. See [security](https://www.invoicexml.com/trust).
+- **Zero data retention.** Documents are processed in memory and never stored. See [security](https://www.invoicexml.com/trust). When you email an invoice, it goes to our email service for delivery, and we keep no copy.
 - **Processing in Frankfurt.** EU-only processing in Frankfurt am Main, Germany, GDPR compliant by design.
 - **Integration assistance.** Our engineers help you map your data and get to production. [Contact us](https://www.invoicexml.com/contact).
 
@@ -140,6 +140,30 @@ var hybrid = await client.CreateFacturXAsync(invoice, new FacturXOptions { PdfUr
 var embedded = await client.EmbedFacturXAsync(File.ReadAllBytes("facture.pdf"), File.ReadAllBytes("factur-x.xml"));
 ```
 
+### Send an invoice by email
+
+The email methods build the invoice exactly like their create and embed counterparts, then send it as a real email from your own address. They return the message id, not the file.
+
+```csharp
+var email = new EmailMessage
+{
+    From = "invoices@yourcompany.com",
+    FromName = "Your Company Billing",
+    To = "comptabilite@client.example",
+    Cc = { "archive@yourcompany.com" },
+    Subject = "Facture F-2026-001",
+    Message = "Veuillez trouver ci-joint votre facture.",
+};
+
+var sent = await client.EmailFacturXAsync(invoice, email, new FacturXOptions { Language = PdfLanguage.Fr });
+Console.WriteLine($"{sent.Status}: {sent.MessageId}");
+
+// Or send a PDF and a CII XML you already have, always with full validation.
+await client.EmailEmbeddedFacturXAsync(File.ReadAllBytes("facture.pdf"), File.ReadAllBytes("factur-x.xml"), email, rules: new[] { FacturXRuleSets.BrFr });
+```
+
+The sender must be on a domain you have added and verified on the Verified email domains page of your dashboard. A domain that is not verified yet throws `InvoiceXmlApiException` with `ErrorCode` `InvoiceXmlErrorCode.EmailDomainNotVerified`. `accepted` means the email was handed over for delivery, not that the recipient's server has received it yet. The client retries these calls only on HTTP 429, when nothing was sent. A timeout or `HttpRequestException` may leave the email sent, so check before you send it again. The same goes for a 503 with error code 4023, which can happen while the email is being sent. If you add your own retry handler to the `HttpClient`, leave these routes out: a second attempt could send a second email. See the [email delivery guide](https://www.invoicexml.com/docs/api/create/facturx/email).
+
 ### Validate incoming invoices
 
 A completed validation always returns a result. An invalid invoice is not an exception: check `Valid`.
@@ -208,8 +232,10 @@ Any other refused request throws `InvoiceXmlApiException` with the HTTP `StatusC
 | Method | Endpoint | Docs |
 |---|---|---|
 | `CreateFacturXAsync` | `POST /v1/create/facturx` | [reference](https://www.invoicexml.com/docs/api/create/facturx) |
+| `EmailFacturXAsync` | `POST /v1/create/facturx/email` | [reference](https://www.invoicexml.com/docs/api/create/facturx/email) |
 | `ValidateFacturXAsync` | `POST /v1/validate/facturx` | [reference](https://www.invoicexml.com/docs/api/validate/facturx) |
 | `EmbedFacturXAsync` | `POST /v1/embed/facturx` | [reference](https://www.invoicexml.com/docs/api/embed/facturx) |
+| `EmailEmbeddedFacturXAsync` | `POST /v1/embed/facturx/email` | [reference](https://www.invoicexml.com/docs/api/embed/facturx/email) |
 | `ExtractJsonAsync` | `POST /v1/extract/json` | [reference](https://www.invoicexml.com/docs/api/extract/json) |
 | `ExtractAttachmentsAsync` | `POST /v1/extract/attachments` | [reference](https://www.invoicexml.com/docs/api/extract/attachments) |
 
