@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 namespace InvoiceXml.FacturX;
 
 /// <summary>
-/// Creates, validates, embeds, emails and reads Factur-X e-invoices through the InvoiceXML API.
-/// Implemented by <see cref="FacturXClient"/>; use the interface to inject and fake the client
-/// in your own tests.
+/// Creates, validates, embeds, renders, converts, emails and reads Factur-X e-invoices through the
+/// InvoiceXML API. Implemented by <see cref="FacturXClient"/>; use the interface to inject and
+/// fake the client in your own tests.
 /// </summary>
 public interface IFacturXClient
 {
@@ -104,6 +104,140 @@ public interface IFacturXClient
 
     /// <inheritdoc cref="EmailEmbeddedFacturXAsync(byte[], byte[], EmailMessage, string?, IEnumerable{string}?, CancellationToken)"/>
     Task<EmailSendResult> EmailEmbeddedFacturXAsync(Stream pdf, Stream xml, EmailMessage email, string? fileName = null, IEnumerable<string>? rules = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Renders the CII XML of a Factur-X invoice as a human-readable PDF (<c>POST /v1/render/cii/to/pdf</c>).
+    /// </summary>
+    /// <param name="xml">The CII invoice XML.</param>
+    /// <param name="options">Language, logo and payment QR code, or null for the defaults.</param>
+    /// <param name="fileName">File name sent with the upload. Defaults to <c>invoice.xml</c>.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The rendered PDF.</returns>
+    Task<InvoiceFile> RenderCiiToPdfAsync(byte[] xml, RenderOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
+
+    /// <inheritdoc cref="RenderCiiToPdfAsync(byte[], RenderOptions?, string?, CancellationToken)"/>
+    Task<InvoiceFile> RenderCiiToPdfAsync(Stream xml, RenderOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Converts a Factur-X PDF to a UBL XML from the XML embedded in it (<c>POST /v1/convert/facturx/to/ubl</c>).
+    /// </summary>
+    /// <param name="pdf">The Factur-X PDF.</param>
+    /// <param name="options">Language of the findings, or null for the defaults.</param>
+    /// <param name="fileName">File name sent with the upload. Defaults to <c>invoice.pdf</c>.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The UBL XML.</returns>
+    /// <exception cref="InvoiceXmlApiException">
+    /// The PDF has no embedded XML (<see cref="InvoiceXmlErrorCode.NoEmbeddedXml"/>), the result
+    /// would not be compliant (see <see cref="InvoiceXmlApiException.Findings"/>), or the request was refused.
+    /// </exception>
+    Task<InvoiceFile> ConvertFacturXToUblAsync(byte[] pdf, ConvertOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
+
+    /// <inheritdoc cref="ConvertFacturXToUblAsync(byte[], ConvertOptions?, string?, CancellationToken)"/>
+    Task<InvoiceFile> ConvertFacturXToUblAsync(Stream pdf, ConvertOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Converts a Factur-X PDF to a CII XML from the XML embedded in it (<c>POST /v1/convert/facturx/to/cii</c>).
+    /// </summary>
+    /// <param name="pdf">The Factur-X PDF.</param>
+    /// <param name="options">Language of the findings, or null for the defaults.</param>
+    /// <param name="fileName">File name sent with the upload. Defaults to <c>invoice.pdf</c>.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The CII XML.</returns>
+    /// <exception cref="InvoiceXmlApiException">
+    /// The PDF has no embedded XML (<see cref="InvoiceXmlErrorCode.NoEmbeddedXml"/>), the result
+    /// would not be compliant (see <see cref="InvoiceXmlApiException.Findings"/>), or the request was refused.
+    /// </exception>
+    Task<InvoiceFile> ConvertFacturXToCiiAsync(byte[] pdf, ConvertOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
+
+    /// <inheritdoc cref="ConvertFacturXToCiiAsync(byte[], ConvertOptions?, string?, CancellationToken)"/>
+    Task<InvoiceFile> ConvertFacturXToCiiAsync(Stream pdf, ConvertOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Converts a CII XML to a Factur-X PDF/A-3, with the PDF rendered from the invoice data
+    /// (<c>POST /v1/convert/cii/to/facturx</c>).
+    /// </summary>
+    /// <param name="xml">The CII invoice XML.</param>
+    /// <param name="options">Language of the PDF and of the findings, or null for the defaults.</param>
+    /// <param name="fileName">File name sent with the upload. Defaults to <c>invoice.xml</c>.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The Factur-X PDF.</returns>
+    /// <exception cref="InvoiceXmlApiException">
+    /// The result would not be compliant (see <see cref="InvoiceXmlApiException.Findings"/>), or the request was refused.
+    /// </exception>
+    Task<InvoiceFile> ConvertCiiToFacturXAsync(byte[] xml, ConvertToPdfOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
+
+    /// <inheritdoc cref="ConvertCiiToFacturXAsync(byte[], ConvertToPdfOptions?, string?, CancellationToken)"/>
+    Task<InvoiceFile> ConvertCiiToFacturXAsync(Stream xml, ConvertToPdfOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Converts a UBL XML to a Factur-X PDF/A-3, with the PDF rendered from the invoice data
+    /// (<c>POST /v1/convert/ubl/to/facturx</c>).
+    /// </summary>
+    /// <param name="xml">The UBL invoice XML.</param>
+    /// <param name="options">Language of the PDF and of the findings, or null for the defaults.</param>
+    /// <param name="fileName">File name sent with the upload. Defaults to <c>invoice.xml</c>.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The Factur-X PDF.</returns>
+    /// <exception cref="InvoiceXmlApiException">
+    /// The result would not be compliant (see <see cref="InvoiceXmlApiException.Findings"/>), or the request was refused.
+    /// </exception>
+    Task<InvoiceFile> ConvertUblToFacturXAsync(byte[] xml, ConvertToPdfOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
+
+    /// <inheritdoc cref="ConvertUblToFacturXAsync(byte[], ConvertToPdfOptions?, string?, CancellationToken)"/>
+    Task<InvoiceFile> ConvertUblToFacturXAsync(Stream xml, ConvertToPdfOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Converts an XRechnung XML, UBL or CII, to a Factur-X PDF/A-3, with the PDF rendered from the
+    /// invoice data (<c>POST /v1/convert/xrechnung/to/facturx</c>).
+    /// </summary>
+    /// <param name="xml">The XRechnung XML, UBL or CII.</param>
+    /// <param name="options">Language of the PDF and of the findings, or null for the defaults.</param>
+    /// <param name="fileName">File name sent with the upload. Defaults to <c>invoice.xml</c>.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The Factur-X PDF.</returns>
+    /// <exception cref="InvoiceXmlApiException">
+    /// The result would not be compliant (see <see cref="InvoiceXmlApiException.Findings"/>), or the request was refused.
+    /// </exception>
+    Task<InvoiceFile> ConvertXRechnungToFacturXAsync(byte[] xml, ConvertToPdfOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
+
+    /// <inheritdoc cref="ConvertXRechnungToFacturXAsync(byte[], ConvertToPdfOptions?, string?, CancellationToken)"/>
+    Task<InvoiceFile> ConvertXRechnungToFacturXAsync(Stream xml, ConvertToPdfOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Validates a Factur-X PDF like <see cref="ValidateFacturXAsync(byte[], string?, IEnumerable{string}?, CancellationToken)"/>
+    /// and returns a printable PDF report with the verdict (<c>POST /v1/validate/facturx/report</c>).
+    /// </summary>
+    /// <param name="pdf">The Factur-X PDF.</param>
+    /// <param name="fileName">File name sent with the upload. Defaults to <c>invoice.pdf</c>.</param>
+    /// <param name="rules">
+    /// Additional rule sets to apply, for example <see cref="FacturXRuleSets.BrFr"/>. Null or empty for none.
+    /// </param>
+    /// <param name="validationLanguage">Language of the whole report. Defaults to English.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The report PDF and the verdict. An invalid invoice is a normal result, not an exception.</returns>
+    /// <exception cref="InvoiceXmlApiException">The upload could not be read, or the request was refused.</exception>
+    Task<ValidationReportResult> ValidateFacturXReportAsync(byte[] pdf, string? fileName = null, IEnumerable<string>? rules = null, PdfLanguage? validationLanguage = null, CancellationToken cancellationToken = default);
+
+    /// <inheritdoc cref="ValidateFacturXReportAsync(byte[], string?, IEnumerable{string}?, PdfLanguage?, CancellationToken)"/>
+    Task<ValidationReportResult> ValidateFacturXReportAsync(Stream pdf, string? fileName = null, IEnumerable<string>? rules = null, PdfLanguage? validationLanguage = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Turns an ordinary PDF invoice into a Factur-X PDF/A-3 (<c>POST /v1/transform/to/facturx</c>).
+    /// AI reads the PDF, so a person must check the result before it is used.
+    /// A 429 on this method is not retried automatically, so wait for <c>Retry-After</c> before calling again if you want to retry.
+    /// </summary>
+    /// <param name="pdf">The PDF invoice.</param>
+    /// <param name="options">Language, visual layer and language of the findings, or null for the defaults.</param>
+    /// <param name="fileName">File name sent with the upload. Defaults to <c>invoice.pdf</c>.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The Factur-X PDF.</returns>
+    /// <exception cref="InvoiceXmlApiException">
+    /// The result would not be compliant (see <see cref="InvoiceXmlApiException.Findings"/>), or the request was refused.
+    /// </exception>
+    Task<InvoiceFile> TransformToFacturXAsync(byte[] pdf, TransformOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
+
+    /// <inheritdoc cref="TransformToFacturXAsync(byte[], TransformOptions?, string?, CancellationToken)"/>
+    Task<InvoiceFile> TransformToFacturXAsync(Stream pdf, TransformOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Reads a Factur-X PDF or a CII invoice XML into an <see cref="InvoiceDocument"/> by

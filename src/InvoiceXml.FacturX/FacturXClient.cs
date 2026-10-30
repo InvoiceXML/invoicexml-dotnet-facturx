@@ -20,8 +20,8 @@ namespace InvoiceXml.FacturX;
 /// </para>
 /// <para>
 /// Requests answered with HTTP 429 are retried after the interval in the <c>Retry-After</c>
-/// header, up to <see cref="InvoiceXmlClientOptions.MaxRetries"/> times. Uploads are buffered in
-/// memory so a retry can resend them.
+/// header, up to <see cref="InvoiceXmlClientOptions.MaxRetries"/> times, except transform calls.
+/// Uploads are buffered in memory so a retry can resend them.
 /// </para>
 /// </remarks>
 public sealed class FacturXClient : IFacturXClient, IDisposable
@@ -153,6 +153,95 @@ public sealed class FacturXClient : IFacturXClient, IDisposable
     }
 
     /// <inheritdoc />
+    public async Task<InvoiceFile> RenderCiiToPdfAsync(byte[] xml, RenderOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default)
+    {
+        if (xml is null) throw new ArgumentNullException(nameof(xml));
+        var form = RequestContent.Form(
+            FormPart.FromFile("file", xml, fileName),
+            LanguagePart("language", options?.Language),
+            FormPart.FromValue("logoUrl", options?.LogoUrl),
+            FlagPart("includeQrCode", options?.IncludeQrCode));
+        var response = await Transport.PostAsync("v1/render/cii/to/pdf", form, cancellationToken).ConfigureAwait(false);
+        return await ApiTransport.ReadFileAsync(response, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<InvoiceFile> RenderCiiToPdfAsync(Stream xml, RenderOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default) =>
+        await RenderCiiToPdfAsync(await RequestContent.BufferAsync(xml, cancellationToken).ConfigureAwait(false), options, fileName, cancellationToken).ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public Task<InvoiceFile> ConvertFacturXToUblAsync(byte[] pdf, ConvertOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default) =>
+        ConvertAsync("v1/convert/facturx/to/ubl", pdf, options, fileName, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<InvoiceFile> ConvertFacturXToUblAsync(Stream pdf, ConvertOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default) =>
+        await ConvertFacturXToUblAsync(await RequestContent.BufferAsync(pdf, cancellationToken).ConfigureAwait(false), options, fileName, cancellationToken).ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public Task<InvoiceFile> ConvertFacturXToCiiAsync(byte[] pdf, ConvertOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default) =>
+        ConvertAsync("v1/convert/facturx/to/cii", pdf, options, fileName, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<InvoiceFile> ConvertFacturXToCiiAsync(Stream pdf, ConvertOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default) =>
+        await ConvertFacturXToCiiAsync(await RequestContent.BufferAsync(pdf, cancellationToken).ConfigureAwait(false), options, fileName, cancellationToken).ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public Task<InvoiceFile> ConvertCiiToFacturXAsync(byte[] xml, ConvertToPdfOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default) =>
+        ConvertToPdfAsync("v1/convert/cii/to/facturx", xml, options, fileName, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<InvoiceFile> ConvertCiiToFacturXAsync(Stream xml, ConvertToPdfOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default) =>
+        await ConvertCiiToFacturXAsync(await RequestContent.BufferAsync(xml, cancellationToken).ConfigureAwait(false), options, fileName, cancellationToken).ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public Task<InvoiceFile> ConvertUblToFacturXAsync(byte[] xml, ConvertToPdfOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default) =>
+        ConvertToPdfAsync("v1/convert/ubl/to/facturx", xml, options, fileName, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<InvoiceFile> ConvertUblToFacturXAsync(Stream xml, ConvertToPdfOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default) =>
+        await ConvertUblToFacturXAsync(await RequestContent.BufferAsync(xml, cancellationToken).ConfigureAwait(false), options, fileName, cancellationToken).ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public Task<InvoiceFile> ConvertXRechnungToFacturXAsync(byte[] xml, ConvertToPdfOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default) =>
+        ConvertToPdfAsync("v1/convert/xrechnung/to/facturx", xml, options, fileName, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<InvoiceFile> ConvertXRechnungToFacturXAsync(Stream xml, ConvertToPdfOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default) =>
+        await ConvertXRechnungToFacturXAsync(await RequestContent.BufferAsync(xml, cancellationToken).ConfigureAwait(false), options, fileName, cancellationToken).ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public async Task<ValidationReportResult> ValidateFacturXReportAsync(byte[] pdf, string? fileName = null, IEnumerable<string>? rules = null, PdfLanguage? validationLanguage = null, CancellationToken cancellationToken = default)
+    {
+        if (pdf is null) throw new ArgumentNullException(nameof(pdf));
+        var parts = new List<FormPart> { FormPart.FromFile("file", pdf, fileName), LanguagePart("validationLanguage", validationLanguage) };
+        parts.AddRange(RuleParts(rules));
+        var response = await Transport.PostAsync("v1/validate/facturx/report", RequestContent.Form(parts.ToArray()), cancellationToken).ConfigureAwait(false);
+        return await ApiTransport.ReadValidationReportAsync(response, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<ValidationReportResult> ValidateFacturXReportAsync(Stream pdf, string? fileName = null, IEnumerable<string>? rules = null, PdfLanguage? validationLanguage = null, CancellationToken cancellationToken = default) =>
+        await ValidateFacturXReportAsync(await RequestContent.BufferAsync(pdf, cancellationToken).ConfigureAwait(false), fileName, rules, validationLanguage, cancellationToken).ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public async Task<InvoiceFile> TransformToFacturXAsync(byte[] pdf, TransformOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default)
+    {
+        if (pdf is null) throw new ArgumentNullException(nameof(pdf));
+        var form = RequestContent.Form(
+            FormPart.FromFile("file", pdf, fileName),
+            LanguagePart("language", options?.Language),
+            FlagPart("preserveOriginalPdf", options?.PreserveOriginalPdf),
+            FlagPart("includeAdvancedProperties", options?.IncludeAdvancedProperties),
+            LanguagePart("validationLanguage", options?.ValidationLanguage));
+        var response = await Transport.PostAsync("v1/transform/to/facturx", form, cancellationToken, retryRateLimit: false).ConfigureAwait(false);
+        return await ApiTransport.ReadFileAsync(response, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<InvoiceFile> TransformToFacturXAsync(Stream pdf, TransformOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default) =>
+        await TransformToFacturXAsync(await RequestContent.BufferAsync(pdf, cancellationToken).ConfigureAwait(false), options, fileName, cancellationToken).ConfigureAwait(false);
+
+    /// <inheritdoc />
     public async Task<InvoiceDocument> ExtractJsonAsync(byte[] file, string? fileName = null, CancellationToken cancellationToken = default)
     {
         if (file is null) throw new ArgumentNullException(nameof(file));
@@ -186,9 +275,37 @@ public sealed class FacturXClient : IFacturXClient, IDisposable
             _http.Dispose();
     }
 
+    private async Task<InvoiceFile> ConvertAsync(string path, byte[] pdf, ConvertOptions? options, string? fileName, CancellationToken cancellationToken)
+    {
+        if (pdf is null) throw new ArgumentNullException(nameof(pdf));
+        var form = RequestContent.Form(
+            FormPart.FromFile("file", pdf, fileName),
+            LanguagePart("validationLanguage", options?.ValidationLanguage));
+        var response = await Transport.PostAsync(path, form, cancellationToken).ConfigureAwait(false);
+        return await ApiTransport.ReadFileAsync(response, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<InvoiceFile> ConvertToPdfAsync(string path, byte[] xml, ConvertToPdfOptions? options, string? fileName, CancellationToken cancellationToken)
+    {
+        if (xml is null) throw new ArgumentNullException(nameof(xml));
+        var form = RequestContent.Form(
+            FormPart.FromFile("file", xml, fileName),
+            LanguagePart("language", options?.Language),
+            LanguagePart("validationLanguage", options?.ValidationLanguage));
+        var response = await Transport.PostAsync(path, form, cancellationToken).ConfigureAwait(false);
+        return await ApiTransport.ReadFileAsync(response, cancellationToken).ConfigureAwait(false);
+    }
+
     // Each rule set travels as its own "rules" form field.
     private static IEnumerable<FormPart> RuleParts(IEnumerable<string>? rules) =>
         (rules ?? Enumerable.Empty<string>())
             .Where(rule => !string.IsNullOrWhiteSpace(rule))
             .Select(rule => FormPart.FromValue("rules", rule.Trim()));
+
+    private static FormPart LanguagePart(string name, PdfLanguage? language) =>
+        FormPart.FromValue(name, language is { } value ? EnumWire<PdfLanguage>.ToWire(value) : null);
+
+    // An unset option stays off the form, so the API's default applies; false is sent as false.
+    private static FormPart FlagPart(string name, bool? value) =>
+        FormPart.FromValue(name, value is { } flag ? (flag ? "true" : "false") : null);
 }

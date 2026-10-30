@@ -57,6 +57,41 @@ public class ReadmeExampleTests
     }
 
     [Fact]
+    public async Task Render_convert_report_and_transform_examples_are_sent_as_documented()
+    {
+        var (client, handler) = TestData.CreateClient();
+        handler.ReplyReport(TestData.Pdf, "false");
+        handler.ReplyFile(TestData.Pdf, "application/pdf", "facture.pdf");
+        handler.ReplyFile(TestData.Xml, "application/xml", "facture.xml");
+        handler.ReplyFile(TestData.Pdf, "application/pdf", "facture.pdf");
+        handler.ReplyFile(TestData.Pdf, "application/pdf", "facture.pdf");
+
+        // Same statements as the README sections, on a mocked transport.
+        var report = await client.ValidateFacturXReportAsync(
+            TestData.Pdf,
+            "facture-fournisseur.pdf",
+            rules: new[] { FacturXRuleSets.BrFr },
+            validationLanguage: PdfLanguage.Fr);
+        var pdf = await client.RenderCiiToPdfAsync(TestData.Xml, new RenderOptions
+        {
+            Language = PdfLanguage.Fr,
+            LogoUrl = "https://example.com/logo.png",
+            IncludeQrCode = true,
+        });
+        var ubl = await client.ConvertFacturXToUblAsync(TestData.Pdf);
+        var facturX = await client.ConvertCiiToFacturXAsync(TestData.Xml, new ConvertToPdfOptions { Language = PdfLanguage.Fr });
+        var hybrid = await client.TransformToFacturXAsync(TestData.Pdf, new TransformOptions { Language = PdfLanguage.Fr });
+
+        Assert.Equal(5, handler.Requests.Count);
+        Assert.False(report.Valid);
+        Assert.Equal("application/pdf", report.File.ContentType);
+        Assert.Equal("application/pdf", pdf.ContentType);
+        Assert.Equal("application/xml", ubl.ContentType);
+        Assert.Equal("application/pdf", facturX.ContentType);
+        Assert.Equal("application/pdf", hybrid.ContentType);
+    }
+
+    [Fact]
     public void Http_client_factory_registration_resolves_the_interface()
     {
         var services = new ServiceCollection();

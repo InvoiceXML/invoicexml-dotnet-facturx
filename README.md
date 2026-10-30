@@ -2,7 +2,7 @@
 
 [![NuGet](https://img.shields.io/nuget/v/InvoiceXml.FacturX.svg)](https://www.nuget.org/packages/InvoiceXml.FacturX)
 
-Create, validate, embed and read Factur-X e-invoices from C#. `InvoiceXml.FacturX` is a thin, typed client for the [InvoiceXML API](https://www.invoicexml.com): you pass an EN 16931 invoice object and get back a Factur-X PDF/A-3 that has already passed the official rules.
+Create, validate, embed, render, convert and read Factur-X e-invoices from C#. `InvoiceXml.FacturX` is a thin, typed client for the [InvoiceXML API](https://www.invoicexml.com): you pass an EN 16931 invoice object and get back a Factur-X PDF/A-3 that has already passed the official rules.
 
 - **Factur-X**: hybrid PDF/A-3 with the invoice XML embedded, EN 16931 profile by default, every official profile selectable, including EXTENDED-CTC-FR.
 - **French e-invoicing reform**: the French BR-FR rules on request, the same set the certified platforms apply. Factur-X is a core format of the reform in force since September 2026 and is accepted by Chorus Pro.
@@ -34,7 +34,7 @@ var pdf = await client.CreateFacturXAsync(new InvoiceDocument
 await pdf.SaveAsync("facture.pdf");
 ```
 
-Totals, VAT breakdowns, the issue date and default payment terms are filled in by the API when you leave them empty. Get an API key with the **30-day free trial: 100 credits, no credit card required** at [www.invoicexml.com/signup](https://www.invoicexml.com/signup).
+Totals, VAT breakdowns, the issue date and default payment terms are filled in by the API when you leave them empty. Get an API key with the **30-day free trial: 100 credits, no credit card required** at [www.invoicexml.com/account/signup](https://www.invoicexml.com/account/signup).
 
 ## Why InvoiceXML
 
@@ -162,7 +162,7 @@ Console.WriteLine($"{sent.Status}: {sent.MessageId}");
 await client.EmailEmbeddedFacturXAsync(File.ReadAllBytes("facture.pdf"), File.ReadAllBytes("factur-x.xml"), email, rules: new[] { FacturXRuleSets.BrFr });
 ```
 
-The sender must be on a domain you have added and verified on the Verified email domains page of your dashboard. A domain that is not verified yet throws `InvoiceXmlApiException` with `ErrorCode` `InvoiceXmlErrorCode.EmailDomainNotVerified`. `accepted` means the email was handed over for delivery, not that the recipient's server has received it yet. The client retries these calls only on HTTP 429, when nothing was sent. A timeout or `HttpRequestException` may leave the email sent, so check before you send it again. The same goes for a 503 with error code 4023, which can happen while the email is being sent. If you add your own retry handler to the `HttpClient`, leave these routes out: a second attempt could send a second email. See the [email delivery guide](https://www.invoicexml.com/docs/api/create/facturx/email).
+The sender must be on a domain you have added and verified on the Verified email domains page of your dashboard. A domain that is not verified yet throws `InvoiceXmlApiException` with `ErrorCode` `InvoiceXmlErrorCode.EmailDomainNotVerified`. `accepted` means the email was handed over for delivery, not that the recipient's server has received it yet. The client retries these calls only on HTTP 429, when nothing was sent. A timeout or `HttpRequestException` may leave the email sent, so check before you send it again. If you add your own retry handler to the `HttpClient`, leave these routes out: a second attempt could send a second email. See the [email delivery guide](https://www.invoicexml.com/docs/api/create/facturx/email).
 
 ### Validate incoming invoices
 
@@ -184,6 +184,63 @@ else
 ```
 
 Leave out `rules` to check against the declared profile only. `result.Report` lists every invoice field with its value and the findings that concern it, ready for a review screen.
+
+### Get a printable validation report
+
+`ValidateFacturXReportAsync` runs the same validation and returns a PDF report for your records, with the verdict next to it. An invalid invoice is not an exception: check `Valid`. It is null when the response carried no verdict.
+
+```csharp
+var report = await client.ValidateFacturXReportAsync(
+    File.ReadAllBytes("facture-fournisseur.pdf"),
+    "facture-fournisseur.pdf",
+    rules: new[] { FacturXRuleSets.BrFr },
+    validationLanguage: PdfLanguage.Fr);
+await report.File.SaveAsync("rapport-validation.pdf");
+
+if (report.Valid == false)
+    Console.WriteLine("The invoice failed validation, see the report.");
+```
+
+`validationLanguage` words the whole report. See the [validation report docs](https://www.invoicexml.com/docs/api/validate/facturx/report).
+
+### Render an invoice as a PDF
+
+Turns the CII XML of a Factur-X invoice into a readable PDF, for approval workflows and archives.
+
+```csharp
+var pdf = await client.RenderCiiToPdfAsync(File.ReadAllBytes("factur-x.xml"), new RenderOptions
+{
+    Language = PdfLanguage.Fr,
+    LogoUrl = "https://example.com/logo.png",
+    IncludeQrCode = true,
+});
+```
+
+See the [render docs](https://www.invoicexml.com/docs/api/render/cii/to/pdf).
+
+### Convert between formats
+
+Each convert method names its route: the source format, then the target. PDF sources must carry an embedded XML.
+
+```csharp
+// Factur-X PDF in, UBL XML out.
+var ubl = await client.ConvertFacturXToUblAsync(File.ReadAllBytes("facture.pdf"));
+
+// CII XML in, Factur-X PDF with French labels out.
+var facturX = await client.ConvertCiiToFacturXAsync(File.ReadAllBytes("factur-x.xml"), new ConvertToPdfOptions { Language = PdfLanguage.Fr });
+```
+
+The result is validated before delivery. When it would not be compliant, the method throws `InvoiceXmlApiException` with the findings, worded in `ValidationLanguage` when you set it. See the [convert docs](https://www.invoicexml.com/docs/api/convert/cii/to/facturx).
+
+### Transform a PDF invoice
+
+`TransformToFacturXAsync` takes an ordinary PDF invoice. AI reads the PDF, so a person must check the result before it is used.
+
+```csharp
+var hybrid = await client.TransformToFacturXAsync(File.ReadAllBytes("facture.pdf"), new TransformOptions { Language = PdfLanguage.Fr });
+```
+
+Leave `Language` empty to use the language the invoice is written in. The rendered PDF ends with a section of technical properties for that check; set `IncludeAdvancedProperties = false` for the classic layout alone, or `PreserveOriginalPdf = true` to keep the uploaded PDF as the visual layer. A 429 on this method is not retried automatically, so wait for `Retry-After` before calling again if you want to retry. See the [transform docs](https://www.invoicexml.com/docs/api/transform/to/facturx).
 
 ### Read invoices and attachments
 
@@ -210,7 +267,7 @@ Inject `IFacturXClient` where you need it, and fake it in your own unit tests. T
 
 ### Rate limits and retries
 
-When more requests of your account run at the same time than your plan allows, the API answers HTTP 429 with a `Retry-After` header. Such a request is not processed and not billed. The client waits the requested interval and retries, up to three times by default:
+When more requests of your account run at the same time than your plan allows, the API answers HTTP 429 with a `Retry-After` header. A 429 is not billed. Every call except transform waits the requested interval and retries, up to three times by default:
 
 ```csharp
 var client = new FacturXClient(new InvoiceXmlClientOptions
@@ -234,10 +291,18 @@ Any other refused request throws `InvoiceXmlApiException` with the HTTP `StatusC
 | `CreateFacturXAsync` | `POST /v1/create/facturx` | [reference](https://www.invoicexml.com/docs/api/create/facturx) |
 | `EmailFacturXAsync` | `POST /v1/create/facturx/email` | [reference](https://www.invoicexml.com/docs/api/create/facturx/email) |
 | `ValidateFacturXAsync` | `POST /v1/validate/facturx` | [reference](https://www.invoicexml.com/docs/api/validate/facturx) |
+| `ValidateFacturXReportAsync` | `POST /v1/validate/facturx/report` | [reference](https://www.invoicexml.com/docs/api/validate/facturx/report) |
 | `EmbedFacturXAsync` | `POST /v1/embed/facturx` | [reference](https://www.invoicexml.com/docs/api/embed/facturx) |
 | `EmailEmbeddedFacturXAsync` | `POST /v1/embed/facturx/email` | [reference](https://www.invoicexml.com/docs/api/embed/facturx/email) |
+| `RenderCiiToPdfAsync` | `POST /v1/render/cii/to/pdf` | [reference](https://www.invoicexml.com/docs/api/render/cii/to/pdf) |
+| `ConvertFacturXToUblAsync` | `POST /v1/convert/facturx/to/ubl` | [reference](https://www.invoicexml.com/docs/api/convert/facturx/to/ubl) |
+| `ConvertFacturXToCiiAsync` | `POST /v1/convert/facturx/to/cii` | [reference](https://www.invoicexml.com/docs/api/convert/facturx/to/cii) |
+| `ConvertCiiToFacturXAsync` | `POST /v1/convert/cii/to/facturx` | [reference](https://www.invoicexml.com/docs/api/convert/cii/to/facturx) |
+| `ConvertUblToFacturXAsync` | `POST /v1/convert/ubl/to/facturx` | [reference](https://www.invoicexml.com/docs/api/convert/ubl/to/facturx) |
+| `ConvertXRechnungToFacturXAsync` | `POST /v1/convert/xrechnung/to/facturx` | [reference](https://www.invoicexml.com/docs/api/convert/xrechnung/to/facturx) |
 | `ExtractJsonAsync` | `POST /v1/extract/json` | [reference](https://www.invoicexml.com/docs/api/extract/json) |
 | `ExtractAttachmentsAsync` | `POST /v1/extract/attachments` | [reference](https://www.invoicexml.com/docs/api/extract/attachments) |
+| `TransformToFacturXAsync` | `POST /v1/transform/to/facturx` | [reference](https://www.invoicexml.com/docs/api/transform/to/facturx) |
 
 The complete OpenAPI description is at [api.invoicexml.com/v1/openapi](https://api.invoicexml.com/v1/openapi), with an interactive explorer at [api.invoicexml.com/v1/scalar](https://api.invoicexml.com/v1/scalar/).
 
