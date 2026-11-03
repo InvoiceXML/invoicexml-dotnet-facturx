@@ -134,17 +134,18 @@ public interface IFacturXClient
     Task<EmailSendResult> EmailEmbeddedFacturXAsync(Stream pdf, Stream xml, EmailMessage email, string? fileName = null, IEnumerable<string>? rules = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Renders the CII XML of a Factur-X invoice as a human-readable PDF (<c>POST /v1/render/cii/to/pdf</c>).
+    /// Renders any invoice XML as a human-readable PDF: CII (such as the XML of a Factur-X invoice),
+    /// UBL or XRechnung. The format is detected from the XML (<c>POST /v1/render/xml/to/pdf</c>).
     /// </summary>
-    /// <param name="xml">The CII invoice XML.</param>
+    /// <param name="xml">The invoice XML.</param>
     /// <param name="options">Language, logo and payment QR code, or null for the defaults.</param>
     /// <param name="fileName">File name sent with the upload. Defaults to <c>invoice.xml</c>.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>The rendered PDF.</returns>
-    Task<InvoiceFile> RenderCiiToPdfAsync(byte[] xml, RenderOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
+    Task<InvoiceFile> RenderXmlToPdfAsync(byte[] xml, RenderOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
 
-    /// <inheritdoc cref="RenderCiiToPdfAsync(byte[], RenderOptions?, string?, CancellationToken)"/>
-    Task<InvoiceFile> RenderCiiToPdfAsync(Stream xml, RenderOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
+    /// <inheritdoc cref="RenderXmlToPdfAsync(byte[], RenderOptions?, string?, CancellationToken)"/>
+    Task<InvoiceFile> RenderXmlToPdfAsync(Stream xml, RenderOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Converts a Factur-X PDF to a UBL XML from the XML embedded in it (<c>POST /v1/convert/facturx/to/ubl</c>).
@@ -282,6 +283,23 @@ public interface IFacturXClient
 
     /// <inheritdoc cref="ExtractJsonAsync(byte[], string?, CancellationToken)"/>
     Task<InvoiceDocument> ExtractJsonAsync(Stream file, string? fileName = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reads an ordinary PDF invoice, typed, scanned or photographed, into an
+    /// <see cref="InvoiceDocument"/> (<c>POST /v1/parse/json</c>). AI reads the PDF, so a person
+    /// must check the data before it is used. Any XML embedded in the PDF is ignored; use
+    /// <see cref="ExtractJsonAsync(byte[], string?, CancellationToken)"/> to read that instead.
+    /// A 429 on this method is not retried automatically, so wait for <c>Retry-After</c> before calling again if you want to retry.
+    /// </summary>
+    /// <param name="pdf">The PDF invoice.</param>
+    /// <param name="fileName">File name sent with the upload. Defaults by content type.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>The invoice, how sure the read was, and the language the invoice is written in.</returns>
+    /// <exception cref="InvoiceXmlApiException">The file is not a PDF, or the request was refused.</exception>
+    Task<ParsedInvoice> ParseJsonAsync(byte[] pdf, string? fileName = null, CancellationToken cancellationToken = default);
+
+    /// <inheritdoc cref="ParseJsonAsync(byte[], string?, CancellationToken)"/>
+    Task<ParsedInvoice> ParseJsonAsync(Stream pdf, string? fileName = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Extracts the supporting documents embedded in an e-invoice, such as timesheets or delivery

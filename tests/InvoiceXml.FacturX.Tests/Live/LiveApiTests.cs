@@ -60,7 +60,7 @@ public class LiveApiTests(ITestOutputHelper output)
 
         // Test input: the CII XML of that invoice and a plain PDF rendering of it.
         var xml = await LiveApi.PostFileAsync("v1/extract/xml", source.ToArray(), "source.pdf", "application/pdf");
-        var plainPdf = await LiveApi.PostFileAsync("v1/render/cii/to/pdf", xml, "factur-x.xml", "application/xml");
+        var plainPdf = await LiveApi.PostFileAsync("v1/render/xml/to/pdf", xml, "factur-x.xml", "application/xml");
 
         var hybrid = await Run(() => client.EmbedFacturXAsync(plainPdf, xml, fileName: "facture.pdf"));
         await LiveApi.SaveAsync(hybrid, "embedded-facturx.pdf");

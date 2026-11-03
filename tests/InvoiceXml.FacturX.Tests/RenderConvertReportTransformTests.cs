@@ -30,17 +30,17 @@ public class RenderConvertReportTransformTests
         where TOptions : class;
 
     [Fact]
-    public async Task RenderCii_sends_every_option()
+    public async Task RenderXml_sends_every_option()
     {
         var (client, handler) = TestData.CreateClient();
         handler.ReplyFile(TestData.Pdf, "application/pdf", "invoice.pdf");
 
-        var file = await client.RenderCiiToPdfAsync(
+        var file = await client.RenderXmlToPdfAsync(
             TestData.Xml,
             new RenderOptions { Language = PdfLanguage.Fr, LogoUrl = "https://example.com/logo.png", IncludeQrCode = true });
 
         var request = Assert.Single(handler.Requests);
-        Assert.Equal("/v1/render/cii/to/pdf", request.Uri.AbsolutePath);
+        Assert.Equal("/v1/render/xml/to/pdf", request.Uri.AbsolutePath);
         Assert.Equal(TestData.Xml, request.Part("file").Body);
         Assert.Equal("fr", request.Part("language").Text);
         Assert.Equal("https://example.com/logo.png", request.Part("logoUrl").Text);
@@ -49,26 +49,26 @@ public class RenderConvertReportTransformTests
     }
 
     [Fact]
-    public async Task RenderCii_omits_unset_options()
+    public async Task RenderXml_omits_unset_options()
     {
         var (client, handler) = TestData.CreateClient();
         handler.ReplyFile(TestData.Pdf, "application/pdf", "invoice.pdf").ReplyFile(TestData.Pdf, "application/pdf", "invoice.pdf");
 
-        await client.RenderCiiToPdfAsync(TestData.Xml);
+        await client.RenderXmlToPdfAsync(TestData.Xml);
         using var stream = new MemoryStream(TestData.Xml);
-        await client.RenderCiiToPdfAsync(stream, new RenderOptions());
+        await client.RenderXmlToPdfAsync(stream, new RenderOptions());
 
         Assert.All(handler.Requests, request => Assert.Equal("file", Assert.Single(request.Parts).Name));
         Assert.Equal(TestData.Xml, handler.Requests[1].Part("file").Body);
     }
 
     [Fact]
-    public async Task RenderCii_sends_a_qr_code_set_to_false()
+    public async Task RenderXml_sends_a_qr_code_set_to_false()
     {
         var (client, handler) = TestData.CreateClient();
         handler.ReplyFile(TestData.Pdf, "application/pdf", "invoice.pdf");
 
-        await client.RenderCiiToPdfAsync(TestData.Xml, new RenderOptions { IncludeQrCode = false });
+        await client.RenderXmlToPdfAsync(TestData.Xml, new RenderOptions { IncludeQrCode = false });
 
         Assert.Equal("false", handler.Requests[0].Part("includeQrCode").Text);
     }
@@ -320,12 +320,12 @@ public class RenderConvertReportTransformTests
         handler.ReplyTooManyRequests(TimeSpan.FromSeconds(1)).ReplyFile(TestData.Xml, "application/xml", "invoice.xml");
         handler.ReplyTooManyRequests(TimeSpan.FromSeconds(1)).ReplyReport(TestData.Pdf, "true");
 
-        await client.RenderCiiToPdfAsync(TestData.Xml);
+        await client.RenderXmlToPdfAsync(TestData.Xml);
         await client.ConvertFacturXToUblAsync(TestData.Pdf);
         await client.ValidateFacturXReportAsync(TestData.Pdf);
 
         Assert.Equal(
-            ["/v1/render/cii/to/pdf", "/v1/render/cii/to/pdf", "/v1/convert/facturx/to/ubl", "/v1/convert/facturx/to/ubl", "/v1/validate/facturx/report", "/v1/validate/facturx/report"],
+            ["/v1/render/xml/to/pdf", "/v1/render/xml/to/pdf", "/v1/convert/facturx/to/ubl", "/v1/convert/facturx/to/ubl", "/v1/validate/facturx/report", "/v1/validate/facturx/report"],
             handler.Requests.Select(r => r.Uri.AbsolutePath));
     }
 
@@ -334,7 +334,7 @@ public class RenderConvertReportTransformTests
     {
         var (client, handler) = TestData.CreateClient();
 
-        await Assert.ThrowsAsync<ArgumentNullException>(() => client.RenderCiiToPdfAsync((byte[])null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => client.RenderXmlToPdfAsync((byte[])null!));
         await Assert.ThrowsAsync<ArgumentNullException>(() => client.ConvertFacturXToUblAsync((byte[])null!));
         await Assert.ThrowsAsync<ArgumentNullException>(() => client.ConvertCiiToFacturXAsync((byte[])null!));
         await Assert.ThrowsAsync<ArgumentNullException>(() => client.ValidateFacturXReportAsync((byte[])null!));

@@ -72,7 +72,7 @@ public class ReadmeExampleTests
             "facture-fournisseur.pdf",
             rules: new[] { FacturXRuleSets.BrFr },
             validationLanguage: PdfLanguage.Fr);
-        var pdf = await client.RenderCiiToPdfAsync(TestData.Xml, new RenderOptions
+        var pdf = await client.RenderXmlToPdfAsync(TestData.Xml, new RenderOptions
         {
             Language = PdfLanguage.Fr,
             LogoUrl = "https://example.com/logo.png",

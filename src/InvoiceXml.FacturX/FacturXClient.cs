@@ -20,7 +20,7 @@ namespace InvoiceXml.FacturX;
 /// </para>
 /// <para>
 /// Requests answered with HTTP 429 are retried after the interval in the <c>Retry-After</c>
-/// header, up to <see cref="InvoiceXmlClientOptions.MaxRetries"/> times, except transform calls.
+/// header, up to <see cref="InvoiceXmlClientOptions.MaxRetries"/> times, except transform and parse calls.
 /// Uploads are buffered in memory so a retry can resend them.
 /// </para>
 /// </remarks>
@@ -171,7 +171,7 @@ public sealed class FacturXClient : IFacturXClient, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<InvoiceFile> RenderCiiToPdfAsync(byte[] xml, RenderOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default)
+    public async Task<InvoiceFile> RenderXmlToPdfAsync(byte[] xml, RenderOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default)
     {
         if (xml is null) throw new ArgumentNullException(nameof(xml));
         var form = RequestContent.Form(
@@ -179,13 +179,13 @@ public sealed class FacturXClient : IFacturXClient, IDisposable
             LanguagePart("language", options?.Language),
             FormPart.FromValue("logoUrl", options?.LogoUrl),
             FlagPart("includeQrCode", options?.IncludeQrCode));
-        var response = await Transport.PostAsync("v1/render/cii/to/pdf", form, cancellationToken).ConfigureAwait(false);
+        var response = await Transport.PostAsync("v1/render/xml/to/pdf", form, cancellationToken).ConfigureAwait(false);
         return await ApiTransport.ReadFileAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async Task<InvoiceFile> RenderCiiToPdfAsync(Stream xml, RenderOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default) =>
-        await RenderCiiToPdfAsync(await RequestContent.BufferAsync(xml, cancellationToken).ConfigureAwait(false), options, fileName, cancellationToken).ConfigureAwait(false);
+    public async Task<InvoiceFile> RenderXmlToPdfAsync(Stream xml, RenderOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default) =>
+        await RenderXmlToPdfAsync(await RequestContent.BufferAsync(xml, cancellationToken).ConfigureAwait(false), options, fileName, cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc />
     public Task<InvoiceFile> ConvertFacturXToUblAsync(byte[] pdf, ConvertOptions? options = null, string? fileName = null, CancellationToken cancellationToken = default) =>
@@ -272,6 +272,21 @@ public sealed class FacturXClient : IFacturXClient, IDisposable
     /// <inheritdoc />
     public async Task<InvoiceDocument> ExtractJsonAsync(Stream file, string? fileName = null, CancellationToken cancellationToken = default) =>
         await ExtractJsonAsync(await RequestContent.BufferAsync(file, cancellationToken).ConfigureAwait(false), fileName, cancellationToken).ConfigureAwait(false);
+
+    /// <inheritdoc />
+    public async Task<ParsedInvoice> ParseJsonAsync(byte[] pdf, string? fileName = null, CancellationToken cancellationToken = default)
+    {
+        if (pdf is null) throw new ArgumentNullException(nameof(pdf));
+        var form = RequestContent.Form(FormPart.FromFile("file", pdf, fileName));
+        var response = await Transport.PostAsync("v1/parse/json", form, cancellationToken, retryRateLimit: false).ConfigureAwait(false);
+        var result = await ApiTransport.ReadJsonAsync<ParseJsonResponseBody>(response, cancellationToken).ConfigureAwait(false);
+        var invoice = result.Invoice ?? throw new InvoiceXmlApiException(System.Net.HttpStatusCode.OK, "InvoiceXML API returned no invoice.");
+        return new ParsedInvoice(invoice, result.Confidence, result.Language);
+    }
+
+    /// <inheritdoc />
+    public async Task<ParsedInvoice> ParseJsonAsync(Stream pdf, string? fileName = null, CancellationToken cancellationToken = default) =>
+        await ParseJsonAsync(await RequestContent.BufferAsync(pdf, cancellationToken).ConfigureAwait(false), fileName, cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc />
     public async Task<InvoiceFile> ExtractAttachmentsAsync(byte[] file, string? fileName = null, CancellationToken cancellationToken = default)
