@@ -107,6 +107,14 @@ await pdf.SaveAsync(pdf.FileName ?? "facture.pdf");
 
 Set `InvoiceDocument.SpecificationId` to a value from `FacturXProfiles` to create a profile other than EN 16931, for example `FacturXProfiles.ExtendedCtcFr` or `FacturXProfiles.Basic`.
 
+### Create a UBL invoice
+
+The same invoice object also produces a UBL invoice. `Profile` takes a value from `UblProfiles` and defaults to Peppol BIS Billing 3.0.
+
+```csharp
+var ubl = await client.CreateUblAsync(invoice, new UblOptions { Profile = UblProfiles.PeppolBis3 });
+```
+
 ### Handle a refused invoice
 
 When the data cannot produce a compliant invoice, `CreateFacturXAsync` throws `InvoiceXmlApiException` with every violated rule and the JSON path of the field to correct.
@@ -138,6 +146,10 @@ var hybrid = await client.CreateFacturXAsync(invoice, new FacturXOptions { PdfUr
 
 // Or combine a PDF and a CII XML you already have.
 var embedded = await client.EmbedFacturXAsync(File.ReadAllBytes("facture.pdf"), File.ReadAllBytes("factur-x.xml"));
+
+// Or build the CII XML from your invoice object, then embed it into your own PDF.
+var cii = await client.CreateCiiAsync(invoice);
+var ownLayout = await client.EmbedFacturXAsync(File.ReadAllBytes("facture.pdf"), cii.ToArray());
 ```
 
 ### Send an invoice by email
@@ -289,6 +301,8 @@ Any other refused request throws `InvoiceXmlApiException` with the HTTP `StatusC
 | Method | Endpoint | Docs |
 |---|---|---|
 | `CreateFacturXAsync` | `POST /v1/create/facturx` | [reference](https://www.invoicexml.com/docs/api/create/facturx) |
+| `CreateCiiAsync` | `POST /v1/create/cii` | [reference](https://www.invoicexml.com/docs/api/create/cii) |
+| `CreateUblAsync` | `POST /v1/create/ubl` | [reference](https://www.invoicexml.com/docs/api/create/ubl) |
 | `EmailFacturXAsync` | `POST /v1/create/facturx/email` | [reference](https://www.invoicexml.com/docs/api/create/facturx/email) |
 | `ValidateFacturXAsync` | `POST /v1/validate/facturx` | [reference](https://www.invoicexml.com/docs/api/validate/facturx) |
 | `ValidateFacturXReportAsync` | `POST /v1/validate/facturx/report` | [reference](https://www.invoicexml.com/docs/api/validate/facturx/report) |

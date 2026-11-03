@@ -72,6 +72,48 @@ public sealed class FacturXOptions
 #pragma warning restore CA2227
 }
 
+/// <summary>Options for <see cref="FacturXClient.CreateCiiAsync"/>.</summary>
+public sealed class CiiOptions
+{
+    /// <summary>
+    /// Language of the default texts the API writes when you leave them empty, such as payment
+    /// terms. Defaults to English.
+    /// </summary>
+    public PdfLanguage? Language { get; set; }
+
+    /// <summary>
+    /// Additional national rule sets the invoice must also pass, for example
+    /// <see cref="FacturXRuleSets.BrFr"/> for the French reform.
+    /// </summary>
+#pragma warning disable CA2227 // Settable so the options read naturally in an object initializer.
+    public IList<string> Rules { get; set; } = new List<string>();
+#pragma warning restore CA2227
+}
+
+/// <summary>Options for <see cref="FacturXClient.CreateUblAsync"/>.</summary>
+public sealed class UblOptions
+{
+    /// <summary>
+    /// UBL profile, a value from <see cref="UblProfiles"/>. It picks the identifier the invoice
+    /// declares and the rule set it is validated against. Defaults to <see cref="UblProfiles.PeppolBis3"/>.
+    /// </summary>
+    public string? Profile { get; set; }
+
+    /// <summary>
+    /// Language of the default texts the API writes when you leave them empty, such as payment
+    /// terms. Defaults to English.
+    /// </summary>
+    public PdfLanguage? Language { get; set; }
+
+    /// <summary>
+    /// Additional national rule sets the invoice must also pass, for example
+    /// <see cref="FacturXRuleSets.BrFr"/> for the French reform.
+    /// </summary>
+#pragma warning disable CA2227 // Settable so the options read naturally in an object initializer.
+    public IList<string> Rules { get; set; } = new List<string>();
+#pragma warning restore CA2227
+}
+
 /// <summary>Options for <see cref="FacturXClient.RenderCiiToPdfAsync(byte[], RenderOptions?, string?, System.Threading.CancellationToken)"/>.</summary>
 public sealed class RenderOptions
 {
